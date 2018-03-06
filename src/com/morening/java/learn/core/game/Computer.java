@@ -39,11 +39,76 @@ public class Computer implements IPlayer {
             return true;
         }
         Node root = new Node(board, ENEMY_MARK, 0);
-        createGameTree(root);
-        populateGameTree(root);
+//        createGameTree(root);
+//        populateGameTree(root);
+        root.value = Integer.MIN_VALUE;
+        createAndPopulate(root);
         outputDecision(root, board, next);
 
         return true;
+    }
+
+    private void createAndPopulate(Node parent){
+        if (parent.depth >= MAX_GAME_TREE_DEPTH){
+            parent.value = evaluate(parent.board, parent.mark, parent.mark == MARK ? ENEMY_MARK: MARK);
+            return;
+        }
+        char enemy_mark = parent.mark;
+        char mark = enemy_mark == MARK ? ENEMY_MARK: MARK;
+        int[] ret = new int[2];
+        if (willWin(parent.board, ret, mark)){
+            Node temp = new Node(parent.board, ret[0], ret[1], mark, parent.depth+1);
+            int value = evaluate(temp.board, mark, enemy_mark);
+            if (temp.depth % 2 == 1){
+                temp.value = value;
+            } else {
+                temp.value = -value;
+            }
+            insertTreeNode(parent, temp);
+            if (parent.mark == MARK){
+                parent.value = Math.min(parent.value, temp.value);
+            } else {
+                parent.value = Math.max(parent.value, temp.value);
+            }
+            return;
+        }
+        for (int i=0; i<Game.MAX_BOARD_SIZE; i++){
+            for (int j=0; j<Game.MAX_BOARD_SIZE; j++){
+                if (parent.board[i][j] == Game.MARK
+                        && (hasNeighbor(parent.board, i, j, mark) || hasNeighbor(parent.board, i, j, enemy_mark))){
+                    Node temp = new Node(parent.board, i, j, mark, parent.depth+1);
+                    if (mark == MARK){
+                        temp.value = Integer.MAX_VALUE;
+                    } else {
+                        temp.value = Integer.MIN_VALUE;
+                    }
+                    insertTreeNode(parent, temp);
+                    createAndPopulate(temp);
+
+                    if (parent.mark == MARK){
+                        parent.value = Math.min(parent.value, temp.value);
+
+                        if (parent.parent != null && parent.value <= parent.parent.value){
+                            return;
+                        }
+                    } else {
+                        parent.value = Math.max(parent.value, temp.value);
+
+                        if (parent.parent != null && parent.value >= parent.parent.value){
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (parent.parent != null){
+            if (parent.parent.mark == MARK){
+                parent.parent.value = Math.min(parent.parent.value, parent.value);
+            } else {
+                parent.parent.value = Math.max(parent.parent.value, parent.value);
+            }
+        }
     }
 
     private void generateHandFirst(char[][] board, Move next) {
